@@ -189,7 +189,8 @@ export const widgetDefinition = defineWidget(
 }
 
 .WidgetPort {
-  display: inline-block;
+  display: inline-flex;
+  height: 100%;
   position: relative;
   vertical-align: middle;
   text-align: center;

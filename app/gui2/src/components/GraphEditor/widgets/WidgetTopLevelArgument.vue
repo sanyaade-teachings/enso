@@ -25,10 +25,11 @@ export const widgetDefinition = defineWidget([ArgumentAst, ArgumentPlaceholder],
 <style scoped>
 .WidgetTopLevelArgument {
   display: inline-flex;
+  height: 100%;
+  vertical-align: middle;
   flex-direction: row;
   place-items: center;
   position: relative;
-  height: var(--node-height);
 
   &:before {
     content: '';

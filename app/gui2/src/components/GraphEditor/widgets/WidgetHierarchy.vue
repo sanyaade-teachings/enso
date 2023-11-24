@@ -24,11 +24,13 @@ export const widgetDefinition = defineWidget(AstExtended.isTree(), {
 
 <style scoped>
 .Tree {
+  display: inline-flex;
+  height: 100%;
+  vertical-align: middle;
   white-space: pre;
   align-items: center;
   transition: background 0.2s ease;
   min-height: 24px;
-  display: inline-block;
 
   &.Literal {
     font-weight: bold;
