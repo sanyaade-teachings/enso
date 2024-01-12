@@ -14,8 +14,10 @@ from Standard.Database import all
 from Standard.Database.Errors import SQL_Error, Unsupported_Database_Operation
 
 from Standard.Test_New import all
+import Standard.Test_New.Problems
+import Standard.Test_New.Suite.Suite_Builder
 
-import project.Database.Common.Default_Ordering_Spec_New
+import project.Database.Common.Common_Spec_New
 import project.Database.Helpers.Name_Generator
 
 ##
@@ -70,7 +72,7 @@ import project.Database.Helpers.Name_Generator
 
 
 sqlite_spec suite_builder create_connection_func prefix =
-    Default_Ordering_Spec_New.add_default_ordering_specs suite_builder prefix create_connection_func
+    Common_Spec_New.add_common_specs suite_builder prefix create_connection_func
 
 
 backing_file =
@@ -125,7 +127,11 @@ suite =
                 Warning.get_all t2 . length . should_equal 1
 
 main =
+    IO.println <| "======"
     suite.print_all
-    group_filter = Regex.compile "\[SQLite File\].*Table.default_ordering"
-    spec_filter = Regex.compile ".*"
+    IO.println <| "======"
+    #group_filter = Regex.compile "\[SQLite File\].*Sorting"
+    group_filter = Nothing
+    #spec_filter = Regex.compile "should allow sorting by a single column name"
+    spec_filter = Nothing
     suite.run_with_filter group_filter spec_filter
