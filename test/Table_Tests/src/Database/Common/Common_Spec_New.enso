@@ -1,0 +1,410 @@
+from Standard.Base import all
+import Standard.Base.Errors.Illegal_Argument.Illegal_Argument
+
+from Standard.Table import Table, Sort_Column
+from Standard.Table.Data.Aggregate_Column.Aggregate_Column import all hiding First, Last
+from Standard.Table.Errors import all
+
+from Standard.Database import all
+from Standard.Database.Errors import all
+
+from Standard.Test_New import all
+import Standard.Test_New.Problems
+import Standard.Test_New.Suite.Suite_Builder
+
+import project.Database.Common.Default_Ordering_Spec
+import project.Database.Common.Names_Length_Limits_Spec
+
+import project.Util
+import project.Database.Helpers.Name_Generator
+import project.Database.Common.Default_Ordering_Spec_New
+
+
+upload connection prefix table temporary=True =
+    name = Name_Generator.random_name prefix
+    created_table = table.select_into_database_table connection name temporary=temporary primary_key=Nothing
+    IO.println <| "    upload: Created table with name " + name
+    created_table
+
+
+drop_table connection name =
+    IO.println <| "    drop_table: Dropping table with name " + name
+    Panic.catch Any (connection.drop_table name) caught_panic->
+        IO.println <| "Failed to drop table: " + name + " because of: " + caught_panic.payload.to_display_text
+
+
+type Basic_Data
+    Value connection t1 t2 t4 big_table big_size
+
+setup_basic_data create_connection_fn =
+    IO.println <| "  Common_Spec_New.setup_basic_data"
+    big_size = 1000
+    connection = create_connection_fn Nothing
+    t1 = upload connection "T1" (Table.new [["a", [1, 4]], ["b", [2, 5]], ["c", [3, 6]]])
+    t2 = upload connection "T2" (Table.new [["d", [100, 200]]])
+    ## The effective name may get a deduplication prefix/suffix so we
+       need to use `t4.name` instead of the literal string. Still it
+       will contain the weird characters we wanted.
+
+       Also, the table name cannot be too long as Postgres truncates at
+       63 chars (and we append 37 chars of uniqueness suffix) and the
+       test logic will break then.
+    t4 = upload connection 'aSELECT "A",\'B\' FROM t;--' (Table.new [["X", ["a", "B"]], ["Y", [2, 5]]])
+    big = Table.new [["a", Vector.new big_size ix->ix], ["b", Vector.new big_size ix-> ix *  3.1415926], ["c", Vector.new big_size ix-> ix.to_text]]
+    big_table = upload connection "Big" big
+    Basic_Data.Value connection t1 t2 t4 big_table big_size
+
+teardown_basic_data data =
+    IO.println <| "  Common_Spec_New.teardown_basic_data"
+    drop_table data.connection data.t1.name
+    drop_table data.connection data.t2.name
+    drop_table data.connection data.t4.name
+    drop_table data.connection data.big_table.name
+
+
+type Missing_Values_Data
+    Value connection t4
+
+setup_missing_values_data create_connection_fn =
+    IO.println <| "  Common_Spec_New.setup_missing_values_data"
+    connection = create_connection_fn Nothing
+    t4 = upload connection "T4" <|
+        Table.new [["a", [0, 1, Nothing, 42, Nothing]], ["b", [True, Nothing, True, False, Nothing]], ["c", ["", "foo", "bar", Nothing, Nothing]]]
+    Missing_Values_Data.Value connection t4
+
+teardown_missing_values_data data =
+    IO.println <| "  Common_Spec_New.teardown_missing_values_data"
+    drop_table data.connection data.t4.name
+
+
+type Sorting_Data
+    Value connection df ints reals bools texts t8
+
+setup_sorting_data create_connection_fn =
+    IO.println <| "  Common_Spec_New.setup_sorting_data"
+    connection = create_connection_fn Nothing
+    ints = [1, 2, 3, 4, 5]
+    reals = [1.3, 4.6, 3.2, 5.2, 1.6]
+    bools = [False, False, True, True, False]
+    texts = ["foo", "foo", "bar", "baz", "spam"]
+    df = upload connection "clothes" <|
+        Table.new [["id", [1,2,3,4,5,6]], ["name", ["shoes","trousers","dress","skirt","blouse","t-shirt"]], ["quantity", [20,10,20,10,30,30]], ["rating", [3.0,Nothing,7.3,3.0,2.2,Nothing]], ["price", [37.2,42.1,64.1,87.4,13.5,64.2]]]
+    t8 = upload connection "T8" <|
+        Table.new [["ord", [0,3,2,4,1]], ["ints", ints], ["reals", reals], ["bools", bools], ["texts", texts]]
+    Sorting_Data.Value connection df ints reals bools texts t8
+
+teardown_sorting_data data =
+    IO.println <| "  Common_Spec_New.teardown_sorting_data"
+    drop_table data.connection data.df.name
+    drop_table data.connection data.t8.name
+
+
+type Aggregation_Data
+    Value connection t9
+
+setup_aggregation_data create_connection_fn =
+    IO.println <| "  Common_Spec_New.setup_aggregation_data"
+    connection = create_connection_fn Nothing
+    builders = [Vector.new_builder,Vector.new_builder,Vector.new_builder]
+    insert v =
+        builders.zip v .append
+    insert ["foo",  0.4,     50]
+    insert ["foo",  0.2,     10]
+    insert ["foo",  0.4,     30]
+    insert ["bar",  3.5,     20]
+    insert ["foo",  Nothing, 20]
+    insert ["baz",  6.7,     40]
+    insert ["foo",  Nothing, 10]
+    insert ["bar",  97,      60]
+    insert ["quux", Nothing, 70]
+    insert ["zzzz", Nothing, Nothing]
+    insert ["zzzz", 1, 1]
+    insert ["zzzz", 0, 0]
+    insert ["zzzz", 0, 1]
+    insert ["zzzz", 1, 0]
+    insert ["zzzz", 0, 0]
+    insert ["zzzz", Nothing, Nothing]
+    t9 = upload connection "T9" <|
+        Table.new [["name", builders.at 0 . to_vector], ["price", builders.at 1 . to_vector], ["quantity", builders.at 2 . to_vector]]
+    Aggregation_Data.Value connection t9
+
+teardown_aggregation_data data =
+    IO.println <| "  Common_Spec_New.teardown_aggregation_data"
+    drop_table data.connection data.t9.name
+
+
+
+add_common_specs (suite_builder : Suite_Builder) (prefix : Text) (create_connection_fn : (Nothing -> Any)) =
+
+    Default_Ordering_Spec_New.add_default_ordering_specs suite_builder prefix create_connection_fn
+    # TODO:
+    # Names_Length_Limits_Spec_New.add_specs suite_builder prefix connection_provider
+
+    suite_builder.group (prefix + "Basic Table Access") setup=(setup_basic_data create_connection_fn) teardown=teardown_basic_data group_builder->
+
+        group_builder.specify_with_args "should allow to materialize tables and columns into local memory" args->
+            df = args.t1.read
+            a = args.t1.at 'a' . read
+            df.at 'a' . to_vector . should_equal [1, 4]
+            a.to_vector . should_equal [1, 4]
+            
+        group_builder.specify_with_args "should allow to materialize columns directly into a Vector" args->
+            v = args.t1.at 'a' . to_vector
+            v . should_equal [1, 4]
+            
+        group_builder.specify_with_args "should handle bigger result sets" args->
+            args.big_table.read.row_count . should_equal args.big_size
+            
+        group_builder.specify_with_args "should not allow to set a column coming from another table" args->
+            args.t1.set (args.t2.at "d") . should_fail_with Integrity_Error
+
+
+    suite_builder.group (prefix + "Connection.query") setup=(setup_basic_data create_connection_fn) teardown=teardown_basic_data group_builder->
+
+        group_builder.specify_with_args "should allow to access a Table by name" args->
+            name = args.t1.name
+            IO.println <| "      Querying table with name " + name
+            tmp = args.connection.query (SQL_Query.Table_Name name)
+            tmp.read . should_equal args.t1.read
+            
+        group_builder.specify_with_args "should allow to access a Table by an SQL query" args->
+            name = args.t1.name
+            t2 = args.connection.query (SQL_Query.Raw_SQL ('SELECT a, b FROM "' + name + '" WHERE a >= 3'))
+            m2 = t2.read
+            m2.column_names . should_equal ["a", "b"]
+            m2.at "a" . to_vector . should_equal [4]
+            m2.at "b" . to_vector . should_equal [5]
+            m2.at "c" . should_fail_with No_Such_Column
+
+        group_builder.specify_with_args "should allow to access a Table by an SQL query" args->
+            name = args.t1.name
+            t2 = args.connection.query (SQL_Query.Raw_SQL ('SELECT a, b FROM "' + name + '" WHERE a >= 3'))
+            m2 = t2.read
+            m2.column_names . should_equal ["a", "b"]
+            m2.at "a" . to_vector . should_equal [4]
+            m2.at "b" . to_vector . should_equal [5]
+            m2.at "c" . should_fail_with No_Such_Column
+
+            t3 = args.connection.query (SQL_Query.Raw_SQL ('SELECT 1+2'))
+            m3 = t3.read
+            m3.at 0 . to_vector . should_equal [3]
+
+        group_builder.specify_with_args "should use labels for column names" args->
+            name = args.t1.name
+            t2 = args.connection.query (SQL_Query.Raw_SQL ('SELECT a AS c, b FROM "' + name + '" WHERE a >= 3'))
+            m2 = t2.read
+            m2.column_names . should_equal ["c", "b"]
+            m2.at "c" . to_vector . should_equal [4]
+            m2.at "b" . to_vector . should_equal [5]
+            m2.at "a" . should_fail_with No_Such_Column
+
+        group_builder.specify_with_args "should allow a shorthand trying to deduce if the query is a table name or an SQL query" args->
+            name = args.t1.name
+            t2 = args.connection.query name
+            t2.read . should_equal args.t1.read
+
+            t3 = args.connection.query ('SELECT a, b FROM "' + name + '" WHERE a >= 3')
+            m3 = t3.read
+            m3.column_names . should_equal ["a", "b"]
+            m3.at "a" . to_vector . should_equal [4]
+
+            t5 = args.connection.query args.t4.name
+            m5 = t5.read
+            m5.column_names . should_equal ["X", "Y"]
+            m5.at "X" . to_vector . should_equal ["a", "B"]
+            m5.at "Y" . to_vector . should_equal [2, 5]
+
+        group_builder.specify_with_args "should report an error depending on input SQL_Query type" args->
+            r2 = args.connection.query (SQL_Query.Table_Name "NONEXISTENT-TABLE")
+            r2.should_fail_with Table_Not_Found
+            r2.catch.name . should_equal "NONEXISTENT-TABLE"
+            r2.catch.to_display_text . should_equal "Table NONEXISTENT-TABLE was not found in the database."
+
+            r3 = args.connection.query (SQL_Query.Raw_SQL "MALFORMED-QUERY")
+            r3.should_fail_with SQL_Error
+
+        group_builder.specify_with_args "should not allow interpolations in raw user-built queries" args->
+            r = args.connection.query (SQL_Query.Raw_SQL "SELECT 1 + ?")
+            r.should_fail_with Illegal_Argument
+
+        group_builder.specify_with_args "should make a best-effort attempt at returning a reasonable error for the short-hand" args->
+            r2 = args.connection.query "NONEXISTENT-TABLE"
+            r2.should_fail_with Table_Not_Found
+            r2.catch.name . should_equal "NONEXISTENT-TABLE"
+            r2.catch.treated_as_query . should_be_true
+            error_text = r2.catch.to_display_text
+            Test.with_clue "r2.catch.to_display_text = "+error_text <|
+                error_text.starts_with "The name NONEXISTENT-TABLE was treated as a query, but the query failed" . should_be_true
+                error_text.ends_with "wrap it in `SQL_Query.Table_Name`." . should_be_true
+
+            r3 = args.connection.query "SELECT * FROM ........"
+            r3.should_fail_with SQL_Error
+
+        group_builder.specify_with_args "will fail if the table is modified and a column gets removed" args->
+            name = Name_Generator.random_name "removing-column"
+            Problems.assume_no_problems <|
+                (Table.new [["a", [1, 2, 3]], ["b", [4, 5, 6]]]).select_into_database_table args.connection name temporary=True
+
+            t1 = args.connection.query name
+            m1 = t1.read
+            Problems.assume_no_problems m1
+            m1.at "a" . to_vector . should_equal [1, 2, 3]
+            m1.at "b" . to_vector . should_equal [4, 5, 6]
+
+            Problems.assume_no_problems <| args.connection.drop_table name
+            Problems.assume_no_problems <|
+                (Table.new [["a", [100, 200]]]).select_into_database_table args.connection name temporary=True
+
+            # Reading a column that was kept will work OK
+            t1.at "a" . to_vector . should_equal [100, 200]
+
+            # But reading the whole table will fail on the missing column:
+            m2 = t1.read
+            m2.should_fail_with SQL_Error
+
+        group_builder.specify_with_args "will not fail if the table is modified and a column gets added" args->
+            name = Name_Generator.random_name "adding-column"
+            Problems.assume_no_problems <|
+                (Table.new [["a", [1, 2, 3]], ["b", [4, 5, 6]]]).select_into_database_table args.connection name temporary=True
+
+            t1 = args.connection.query name
+            m1 = t1.read
+            Problems.assume_no_problems m1
+            m1.at "a" . to_vector . should_equal [1, 2, 3]
+            m1.at "b" . to_vector . should_equal [4, 5, 6]
+
+            Problems.assume_no_problems <| args.connection.drop_table name
+            Problems.assume_no_problems <|
+                (Table.new [["a", [100, 200]], ["b", [300, 400]], ["c", [500, 600]]]).select_into_database_table args.connection name temporary=True
+
+            m2 = t1.read
+            Problems.assume_no_problems m2
+            m2.column_names . should_equal ["a", "b"]
+            m2.at "a" . to_vector . should_equal [100, 200]
+            m2.at "b" . to_vector . should_equal [300, 400]
+
+            t1.at "c" . should_fail_with No_Such_Column
+
+            t2 = args.connection.query name
+            t2.column_names . should_equal ["a", "b", "c"]
+
+
+    suite_builder.group (prefix + "Masking Tables") setup=(setup_basic_data create_connection_fn) teardown=teardown_basic_data group_builder->
+
+        group_builder.specify_with_args "should allow to select rows from a table or column based on an expression" args->
+            t2 = args.t1.filter (args.t1.at "a" == 1)
+            df = t2.read
+            df.at "a" . to_vector . should_equal [1]
+            df.at "b" . to_vector . should_equal [2]
+            df.at "c" . to_vector . should_equal [3]
+            t2.at "a" . to_vector . should_equal [1]
+            t2.at "b" . to_vector . should_equal [2]
+            t2.at "c" . to_vector . should_equal [3]
+
+    suite_builder.group (prefix + "Missing Values") setup=(setup_missing_values_data create_connection_fn) teardown=teardown_missing_values_data  group_builder->
+
+        group_builder.specify_with_args "fill_nothing should replace nulls" args->
+            args.t4.at 'a' . fill_nothing 10 . to_vector . should_equal [0, 1, 10, 42, 10]
+            args.t4.at 'b' . fill_nothing False . to_vector . should_equal [True, False, True, False, False]
+            args.t4.at 'c' . fill_nothing "NA" . to_vector . should_equal ["", "foo", "bar", "NA", "NA"]
+
+        group_builder.specify_with_args "should correctly be counted" args->
+            args.t4.row_count . should_equal 5
+            col = args.t4.at 'a'
+            col.length . should_equal 5
+            col.count . should_equal 3
+            col.count_nothing . should_equal 2
+
+
+    suite_builder.group (prefix + "Sorting") setup=(setup_sorting_data create_connection_fn) teardown=teardown_sorting_data group_builder->
+
+        group_builder.specify_with_args "should allow sorting by a single column name" args->
+            r_1 = args.df.order_by ([Sort_Column.Name 'quantity'])
+            r_1.at 'id' . to_vector . should_equal [2,4,1,3,5,6]
+
+            r_3 = args.df.order_by ([Sort_Column.Name 'rating' Sort_Direction.Descending])
+            r_3.at 'id' . to_vector . should_equal [3,1,4,5,2,6]
+
+        group_builder.specify_with_args 'should allow sorting by multiple column names' args->
+            r_1 = args.df.order_by ([Sort_Column.Name 'quantity', Sort_Column.Name 'rating'])
+            r_1.at 'id' . to_vector . should_equal [2,4,1,3,6,5]
+
+            r_2 = args.df.order_by ([Sort_Column.Name 'rating' Sort_Direction.Descending, Sort_Column.Name 'quantity' Sort_Direction.Descending])
+            r_2.at 'id' . to_vector . should_equal [3,1,4,5,6,2]
+
+
+        group_builder.specify_with_args 'should allow sorting with specific by-column rules' args->
+            r_1 = args.df.order_by ([Sort_Column.Name "quantity", Sort_Column.Name "price" Sort_Direction.Descending])
+            r_1.at 'id' . to_vector . should_equal [4,2,3,1,6,5]
+
+        group_builder.specify_with_args 'should correctly reorder all kinds of columns and leave the original columns untouched' args->
+            r = args.t8.order_by ([Sort_Column.Name 'ord'])
+
+            r.at 'ints' . to_vector . should_equal [1, 5, 3, 2, 4]
+            args.t8.at 'ints' . to_vector . should_equal args.ints
+
+            r.at 'reals' . to_vector . should_equal [1.3, 1.6, 3.2, 4.6, 5.2]
+            args.t8.at 'reals' . to_vector . should_equal args.reals
+
+            r.at 'bools' . to_vector . should_equal [False, False, True, False, True]
+            args.t8.at 'bools' . to_vector . should_equal args.bools
+
+            r.at 'texts' . to_vector . should_equal ['foo', 'spam', 'bar', 'foo', 'baz']
+            args.t8.at 'texts' . to_vector . should_equal args.texts
+
+        group_builder.specify_with_args 'should sort columns with specified ordering and missing placement' args->
+            c = args.df.at 'rating'
+
+            r_1 = c.sort
+            r_1.to_vector.should_equal [Nothing, Nothing, 2.2, 3.0, 3.0, 7.3]
+
+            r_2 = c.sort Sort_Direction.Descending
+            r_2.to_vector.should_equal [7.3, 3.0, 3.0, 2.2, Nothing, Nothing]
+
+
+    suite_builder.group prefix+"Aggregation" setup=(setup_aggregation_data create_connection_fn) teardown=teardown_aggregation_data group_builder->
+
+        ## A helper which makes sure that the groups in a materialized
+           (InMemory) table are ordered according to a specified column or list
+           of columns.
+        determinize_by order_column table =
+            table.order_by ([Sort_Column.Name order_column])
+
+        group_builder.specify_with_args "should allow counting group sizes and elements" args->
+            ## Names set to lower case to avoid issue with Redshift where columns are
+               returned in lower case.
+            aggregates = [Count "count", Count_Not_Nothing "price" "count not nothing price", Count_Nothing "price" "count nothing price"]
+
+            t1 = determinize_by "name" (args.t9.aggregate ([Group_By "name"] + aggregates) . read)
+            t1.at  "name" . to_vector . should_equal ["bar", "baz", "foo", "quux", "zzzz"]
+            t1.at  "count" . to_vector . should_equal [2, 1, 5, 1, 7]
+            t1.at  "count not nothing price" . to_vector . should_equal [2, 1, 3, 0, 5]
+            t1.at  "count nothing price" . to_vector . should_equal [0, 0, 2, 1, 2]
+
+            t2 = args.t9.aggregate aggregates . read
+            t2.at  "count" . to_vector . should_equal [16]
+            t2.at  "count not nothing price" . to_vector . should_equal [11]
+            t2.at  "count nothing price" . to_vector . should_equal [5]
+
+        group_builder.specify_with_args "should allow simple arithmetic aggregations" args->
+            ## Names set to lower case to avoid issue with Redshift where columns are
+               returned in lower case.
+            aggregates = [Sum "price" "sum price", Sum "quantity" "sum quantity", Average "price" "avg price"]
+            ## TODO can check the argstypes
+
+            t1 = determinize_by "name" (args.t9.aggregate ([Group_By "name"] + aggregates) . read)
+            t1.at  "name" . to_vector . should_equal ["bar", "baz", "foo", "quux", "zzzz"]
+            t1.at  "sum price" . to_vector . should_equal [100.5, 6.7, 1, Nothing, 2]
+            t1.at  "sum quantity" . to_vector . should_equal [80, 40, 120, 70, 2]
+            t1.at  "avg price" . to_vector . should_equal [50.25, 6.7, (1/3), Nothing, (2/5)]
+
+            t2 = args.t9.aggregate aggregates . read
+            t2.at  "sum price" . to_vector . should_equal [110.2]
+            t2.at  "sum quantity" . to_vector . should_equal [312]
+            t2.at  "avg price" . to_vector . should_equal [(110.2 / 11)]
+
+    suite_builder.group prefix+"Table.filter" setup=(setup_basic_data create_connection_fn) teardown=teardown_basic_data group_builder->
+
+        group_builder.specify_with_args "report error when trying to filter by a custom predicate" args->
+            args.t1.filter "a" (x -> x % 2 == 0) . should_fail_with Unsupported_Database_Operation
+
