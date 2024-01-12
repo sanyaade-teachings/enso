@@ -27,28 +27,32 @@ run_group (group : Group) =
 
 run_specs_from_group : Vector Spec -> Text -> Vector Test_Result
 run_specs_from_group (specs : Vector Spec) (group : Group) =
-    if specs.not_empty then
-        IO.println <| "Running tests in group '" + group.name + "'..."
-    specs.map spec->
-        IO.println <| "  Running spec '" + spec.name + "'..."
-        pair = run_spec spec group.setup
-        spec_res = pair.second
-        time_taken = pair.first
-        Test_Result.Impl group.name spec.name spec_res time_taken
+    case specs.is_empty of
+        True -> []
+        False ->
+            IO.println <| "Running tests in group '" + group.name + "'..."
+            setup_args = group.setup Nothing
+            test_results = specs.map spec->
+                IO.println <| "  Running spec '" + spec.name + "'..."
+                pair = run_spec spec setup_args
+                IO.println <| "  Finished spec '" + spec.name + "'."
+                spec_res = pair.second
+                time_taken = pair.first
+                Test_Result.Impl group.name spec.name spec_res time_taken
+            group.teardown setup_args
+            test_results
 
 ## PRIVATE
    Runs a single test spec.
 
    Arguments:
-   - setup_fn: Either Nothing or a function that returns arguments that should be passed
-                   to the spec test. Alias for `before_each`.
-run_spec : Spec -> (Nothing -> Any) -> Pair Duration Spec_Result
-run_spec (spec : Spec) (setup_fn : (Nothing -> Any)) =
+   - args : Arguments from Group's setup method.
+run_spec : Spec -> Any -> Pair Duration Spec_Result
+run_spec (spec : Spec) (args : Any) =
     pair = case spec.pending of
         Nothing ->
-            spec_args = setup_fn Nothing
             Duration.time_execution <|
-                State.run Clue Nothing (execute_spec_code spec.code spec_args)
+                State.run Clue Nothing (execute_spec_code spec.code args)
         reason -> Pair.new Duration.zero (Spec_Result.Pending reason)
     pair
 
