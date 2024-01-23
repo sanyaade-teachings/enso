@@ -15,10 +15,10 @@ type Data
         self.startup [ "--run", self.hello_world.to_text ]
 
     bench_base_tests self =
-        self.startup expected_output="Exiting" [ "--run", self.base_tests.to_text, "exit" ]
+        self.startup expected_output="Exiting" [ "--no-ir-caches", "--run", self.base_tests.to_text, "exit" ]
 
     bench_table_tests self =
-        self.startup expected_output="Exiting" [ "--run", self.table_tests.to_text, "exit" ]
+        self.startup expected_output="Exiting" [ "--no-ir-caches", "--run", self.table_tests.to_text, "exit" ]
 
     startup self args expected_output="Hello World" =
         exe = self.enso_bin
