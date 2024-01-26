@@ -1,6 +1,5 @@
 package org.enso.table.data.column.storage2;
 
-import org.enso.table.data.column.storage.MixedStorage;
 import org.enso.table.data.column.storage.type.StorageType;
 
 //** Interface storage for generic values. */
@@ -51,9 +50,7 @@ public interface TypedStorage<T> {
 
   /**
    * Returns a more specialized storage, if available.
-   *
-   * <p>This storage should have the same type as returned by {@code inferPreciseType}. See {@link
-   * MixedStorage} for more information.
+   * This storage should have the same type as returned by {@code inferPreciseType}.
    */
   TypedStorage<?> tryGettingMoreSpecializedStorage();
 }
