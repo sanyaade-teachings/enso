@@ -1672,19 +1672,13 @@ type Table
        A helper that creates a two-column table from a Map.
     make_table_from_map  : Map Any Any -> Text -> Text -> Table
     make_table_from_map self map key_column_name value_column_name =
-        keys_and_values = map.to_vector
-        self.make_table_from_vectors [keys_and_values.map .first, keys_and_values.map .second] [key_column_name, value_column_name]
+        Table.from map . rename_columns (Map.from_vector [['key', key_column_name], ['value', value_column_name]])
 
     ## PRIVATE
        A helper that creates a literal table from `Vector`s.
     make_table_from_vectors : Vector (Vector Any) -> Vector Text -> Table
     make_table_from_vectors self column_vectors column_names =
-        # Assume the columns are all the same length; if not, it will be an error anyway.
-        total_size = if column_vectors.is_empty || column_vectors.at 0 . is_empty then 0 else
-            column_vectors.length * (column_vectors.at 0 . length)
-        if total_size == 0 then Error.throw (Illegal_Argument.Error "Vectors cannot be empty") else
-            Runtime.assert (column_vectors.length == column_names.length) "column_vectors and column_names must have the same length"
-            Table.new (column_vectors.zip column_names (v-> n-> Column.from_vector n v))
+        make_table_from_vectors_static column_vectors column_names
 
     ## PRIVATE
 
@@ -2894,3 +2888,20 @@ Table.from (that:XML_Element) =
 
    Either `Children` or `Value` will be generated, but not both.
 Table.from (that:XML_Document) = Table.from that.root_element
+
+## PRIVATE
+   Convert a `Map` to a two-column `Table` with column names 'key' and 'value'.
+Table.from (that:Map) =
+    keys_and_values = that.to_vector
+    make_table_from_vectors_static [keys_and_values.map .first, keys_and_values.map .second] ['key', 'value']
+
+## PRIVATE
+    A helper that creates a literal table from `Vector`s.
+make_table_from_vectors_static : Vector (Vector Any) -> Vector Text -> Table
+make_table_from_vectors_static column_vectors column_names =
+    # Assume the columns are all the same length; if not, it will be an error anyway.
+    total_size = if column_vectors.is_empty || column_vectors.at 0 . is_empty then 0 else
+        column_vectors.length * (column_vectors.at 0 . length)
+    if total_size == 0 then Error.throw (Illegal_Argument.Error "Vectors cannot be empty") else
+        Runtime.assert (column_vectors.length == column_names.length) "column_vectors and column_names must have the same length"
+        Table.new (column_vectors.zip column_names (v-> n-> Column.from_vector n v))
