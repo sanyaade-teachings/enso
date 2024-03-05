@@ -333,59 +333,37 @@ impl RunContext {
                 crate::rust::parser::run_self_tests(&self.paths.repo_root)
             });
 
+
         // If we have much memory, we can try building everything in a single batch. Reducing number
         // of SBT invocations significantly helps build time. However, it is more memory heavy, so
         // we don't want to call this in environments like GH-hosted runners.
 
         // === Build project-manager distribution and native image ===
         debug!("Bulding project-manager distribution and Native Image");
-        if crate::ci::big_memory_machine() {
-            let mut tasks = vec![];
+        let mut tasks = vec![];
+        if self.config.build_engine_package() {
+            tasks.push("buildEngineDistribution");
+        }
+        if self.config.build_native_runner {
+            tasks.push("engine-runner/buildNativeImage");
+        }
 
-            if self.config.build_engine_package() {
-                tasks.push("buildEngineDistribution");
-                tasks.push("engine-runner/assembly");
-            }
-            if self.config.build_native_runner {
-                tasks.push("engine-runner/buildNativeImage");
-            }
+        if self.config.build_project_manager_package() {
+            tasks.push("buildProjectManagerDistribution");
+        }
 
-            if self.config.build_project_manager_package() {
-                tasks.push("buildProjectManagerDistribution");
-            }
+        if self.config.build_launcher_package() {
+            tasks.push("buildLauncherDistribution");
+        }
 
-            if self.config.build_launcher_package() {
-                tasks.push("buildLauncherDistribution");
-            }
-
-            if !tasks.is_empty() {
+        if !tasks.is_empty() {
+            if crate::ci::big_memory_machine() {
                 sbt.call_arg(Sbt::concurrent_tasks(tasks)).await?;
+            } else {
+                sbt.call_arg(Sbt::sequential_tasks(tasks)).await?;
             }
         } else {
-            // If we are run on a weak machine (like GH-hosted runner), we need to build things one
-            // by one.
-            sbt.call_arg("compile").await?;
-
-            // Build the Runner & Runtime Uberjars
-            sbt.call_arg("engine-runner/assembly").await?;
-
-            // Build the Launcher Native Image
-            sbt.call_arg("launcher/assembly").await?;
-            sbt.call_args(&["--mem", "1536", "launcher/buildNativeImage"]).await?;
-
-            // Build the PM Native Image
-            sbt.call_arg("project-manager/assembly").await?;
-            sbt.call_args(&["--mem", "1536", "project-manager/buildNativeImage"]).await?;
-
-            // Prepare Launcher Distribution
-            //create_launcher_package(&paths)?;
-            sbt.call_arg("buildLauncherDistribution").await?;
-
-            // Prepare Engine Distribution
-            sbt.call_arg("buildEngineDistribution").await?;
-
-            // Prepare Project Manager Distribution
-            sbt.call_arg("buildProjectManagerDistribution").await?;
+            info!("No tasks for distribution building.");
         }
         // === End of Build project-manager distribution and native image ===
 
@@ -397,20 +375,7 @@ impl RunContext {
         if TARGET_OS == OS::Windows {
             debug!("Copying MSVC CRT DLLs to the distribution.");
             for package in ret.packages() {
-                let package_dir = package.dir();
-                let binary_extensions = [EXE_EXTENSION, DLL_EXTENSION];
-                let binaries = binary_extensions
-                    .into_iter()
-                    .map(|extension| {
-                        let pattern = package_dir.join_iter(["**", "*"]).with_extension(extension);
-                        glob::glob(pattern.as_str())?.try_collect_vec()
-                    })
-                    .try_collect_vec()?
-                    .into_iter()
-                    .flatten()
-                    .collect_vec();
-
-                debug!(?binaries, "Found executables in the package.");
+                let binaries = discover_executables(&package)?;
                 for binary in binaries {
                     ide_ci::packaging::add_msvc_redist_dependencies(&binary).await?;
                 }
@@ -720,4 +685,23 @@ pub async fn runner_sanity_test(
         "Native runner output does not contain expected result '{factorial_expected_output}'. Output:\n{output}",
     );
     Ok(())
+}
+
+/// Find recursively all executables and shared libraries in a given package.
+pub fn discover_executables(package: impl AsRef<Path>) -> Result<Vec<PathBuf>> {
+    let package = package.as_ref();
+    let binary_extensions = [EXE_EXTENSION, DLL_EXTENSION];
+    let binaries = binary_extensions
+        .into_iter()
+        .map(|extension| {
+            let pattern = package.join_iter(["**", "*"]).with_extension(extension);
+            glob::glob(pattern.as_str())?.try_collect_vec()
+        })
+        .try_collect_vec()?
+        .into_iter()
+        .flatten()
+        .collect_vec();
+
+    debug!(?binaries, "Found executables in the package.");
+    Ok(binaries)
 }
