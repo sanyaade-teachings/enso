@@ -9,11 +9,6 @@ use crate::paths::generated;
 use crate::paths::TargetTriple;
 use crate::paths::EDITION_FILE_ARTIFACT_NAME;
 use crate::project;
-use crate::project::gui;
-use crate::project::Gui;
-use crate::project::IsTarget;
-use crate::source::ExternalSource;
-use crate::source::FetchTargetJob;
 use crate::version;
 use crate::version::promote::Designation;
 use crate::version::Versions;
@@ -27,7 +22,6 @@ use octocrab::params::repos::Reference;
 use reqwest::Response;
 use serde_json::json;
 use tempfile::tempdir;
-
 
 
 /// Get the prefix of URL of the release's asset in GitHub.
@@ -44,7 +38,7 @@ use tempfile::tempdir;
 /// assert_eq!(prefix, "https://github.com/enso-org/enso/releases/download/2020.1.1");
 /// ```
 pub fn download_asset_prefix(repo: &impl IsRepo, version: &Version) -> String {
-    format!("https://github.com/{repo}/releases/download/{version}",)
+    format!("https://github.com/{repo}/releases/download/{version}", )
 }
 
 /// Generate placeholders for the release notes.
@@ -65,7 +59,7 @@ pub fn release_body_placeholders(
             "https://github.com/{}/releases/download/{}",
             context.remote_repo, context.triple.versions.version
         )
-        .into(),
+            .into(),
     );
 
     // Generate the release notes.
@@ -167,14 +161,14 @@ pub async fn publish_release(context: &BuildContext) -> Result {
         temp.path(),
         triple.versions.edition_name(),
     )
-    .edition_yaml;
+        .edition_yaml;
 
 
     ide_ci::actions::artifacts::download_single_file_artifact(
         EDITION_FILE_ARTIFACT_NAME,
         &edition_file_path,
     )
-    .await?;
+        .await?;
 
     debug!("Updating edition in the AWS S3.");
     crate::aws::update_manifest(&remote_repo, &edition_file_path).await?;
@@ -218,13 +212,13 @@ pub async fn generate_runtime_image(
         temp_for_extraction.path(),
         &linux_triple,
     )
-    .await?;
+        .await?;
     crate::aws::ecr::runtime::build_runtime_image(
         context.repo_root.tools.ci.docker.clone(),
         engine_package,
         tag.into(),
     )
-    .await
+        .await
 }
 
 /// Perform deploy of the backend to the ECR.
@@ -239,26 +233,6 @@ pub async fn deploy_to_ecr(context: &BuildContext, repository: String) -> Result
     let _image_id = generate_runtime_image(context, &tag).await?;
     let credentials = crate::aws::ecr::get_credentials(&client).await?;
     Docker.while_logged_in(credentials, || async move { Docker.push(&tag).await }).await?;
-    Ok(())
-}
-
-/// Download the GUI artifacts from the current CI run artifacts.
-pub async fn get_gui_from_current_ci_run(
-    context: &BuildContext,
-    out_dir: impl Into<PathBuf>,
-) -> Result<gui::Artifact> {
-    let target = Gui;
-    let source = ExternalSource::new_ongoing_ci_run(target.artifact_name());
-    let fetch_job = FetchTargetJob { destination: out_dir.into(), inner: source };
-    target.get_external(context.inner.clone(), fetch_job).await
-}
-
-/// Upload GUI to the cloud (AWS S3).
-pub async fn upload_gui_to_cloud_good(context: &BuildContext) -> Result {
-    let temp = tempdir()?;
-    let gui = get_gui_from_current_ci_run(context, temp.path()).await?;
-    upload_gui_to_cloud(&gui.assets, &context.triple.versions.version).await?;
-    notify_cloud_about_gui(&context.triple.versions.version).await?;
     Ok(())
 }
 
@@ -291,7 +265,7 @@ pub async fn upload_gui_to_cloud(
 /// The files are uploaded with the same name, but with `.gz` extension.
 pub async fn put_files_gzipping(
     bucket: &crate::aws::s3::BucketContext,
-    files: impl IntoIterator<Item = impl AsRef<Path>>,
+    files: impl IntoIterator<Item=impl AsRef<Path>>,
 ) -> Result {
     let temp_for_gzipping = tempdir()?;
     for file in files {

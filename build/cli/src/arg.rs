@@ -30,7 +30,6 @@ pub mod runtime;
 pub mod wasm;
 
 
-
 /// The prefix that will be used when reading the build script arguments from environment.
 pub const ENVIRONMENT_VARIABLE_NAME_PREFIX: &str = "ENSO_BUILD";
 
@@ -112,10 +111,6 @@ macro_rules! source_args_hlp {
 #[allow(clippy::large_enum_variant)]
 #[derive(Subcommand, Clone, Debug)]
 pub enum Target {
-    /// Build/Test the Rust part of the GUI.
-    Wasm(wasm::Target),
-    /// Build/Run the legacy Rust-based GUI that consists of WASM and JS parts.
-    Gui(gui::Target),
     /// Build/Run the new, Vue-based GUI.
     Gui2(gui2::Target),
     /// Enso Engine Runtime.
@@ -126,8 +121,6 @@ pub enum Target {
     // Engine(engine::Target),
     /// Build/Get Project Manager bundle (includes Enso Engine with GraalVM Runtime).
     Backend(backend::Target),
-    /// Build/Run/Test IDE bundle (includes Rust-based GUI and Project Manager).
-    Ide(ide::Target),
     /// Build/Run/Test IDE bundle (includes Vue-based GUI and Project Manager).
     Ide2(ide2::Target),
     /// Clean the repository. Keeps the IntelliJ's .idea directory intact. WARNING: This removes
@@ -167,7 +160,7 @@ pub struct Cli {
 
     /// Platform to target. Currently cross-compilation is enabled only for GUI/IDE (without
     /// Project Manager) on platforms where Electron Builder supports this.
-    #[clap(long, global = true, default_value_t = TARGET_OS, enso_env(), possible_values=[OS::Windows.as_str(), OS::Linux.as_str(), OS::MacOS.as_str()])]
+    #[clap(long, global = true, default_value_t = TARGET_OS, enso_env(), possible_values = [OS::Windows.as_str(), OS::Linux.as_str(), OS::MacOS.as_str()])]
     pub target_os: OS,
 
     /// Does not check the program version requirements defined in the build-config.yaml.
@@ -189,7 +182,7 @@ pub struct Cli {
 #[derivative(PartialEq)]
 pub struct Source<Target: IsTargetSource> {
     /// How the given target should be acquired.
-    #[clap(name = Target::SOURCE_NAME, arg_enum, long, default_value_t= SourceKind::Build,
+    #[clap(name = Target::SOURCE_NAME, arg_enum, long, default_value_t = SourceKind::Build,
     enso_env(),
     default_value_if(Target::RUN_ID_NAME, None, Some("ci-run")),
     default_value_if(Target::PATH_NAME, None, Some("local")),
@@ -198,7 +191,7 @@ pub struct Source<Target: IsTargetSource> {
 
     /// If source is `local`, this argument is used to give the path with the component.
     /// If missing, the default would-be output directory for this component shall be used.
-    #[clap(name = Target::PATH_NAME, long, default_value=Target::DEFAULT_OUTPUT_PATH, enso_env())]
+    #[clap(name = Target::PATH_NAME, long, default_value = Target::DEFAULT_OUTPUT_PATH, enso_env())]
     pub path: PathBuf,
 
     /// If source is `run`, this argument is required to provide CI run ID.
@@ -250,12 +243,12 @@ pub enum SourceKind {
 pub struct OutputPath<Target: IsTargetSource> {
     /// Directory where artifacts should be placed.
     #[derivative(Debug(format_with = "display_fmt"))]
-    #[clap(name = Target::OUTPUT_PATH_NAME, long, parse(try_from_str=normalize_path), default_value = Target::DEFAULT_OUTPUT_PATH, enso_env())]
+    #[clap(name = Target::OUTPUT_PATH_NAME, long, parse(try_from_str = normalize_path), default_value = Target::DEFAULT_OUTPUT_PATH, enso_env())]
     pub output_path: PathBuf,
     #[derivative(Debug = "ignore", PartialEq(bound = ""))]
     #[allow(missing_docs)]
     #[clap(skip)]
-    pub phantom:     PhantomData<Target>,
+    pub phantom: PhantomData<Target>,
 }
 
 impl<Target: IsTargetSource> AsRef<Path> for OutputPath<Target> {
@@ -269,7 +262,7 @@ impl<Target: IsTargetSource> AsRef<Path> for OutputPath<Target> {
 pub struct BuildDescription<Target: IsTargetSource> {
     #[derivative(PartialEq(bound = ""))]
     #[clap(flatten)]
-    pub input:           Target::BuildInput,
+    pub input: Target::BuildInput,
     #[clap(name = Target::UPLOAD_ARTIFACT_NAME, long, enso_env(), default_value_t = ide_ci::actions::workflow::is_in_env())]
     pub upload_artifact: bool,
 }
@@ -278,7 +271,7 @@ pub struct BuildDescription<Target: IsTargetSource> {
 #[derivative(Debug)]
 pub struct BuildJob<Target: IsTargetSource> {
     #[clap(flatten)]
-    pub input:       BuildDescription<Target>,
+    pub input: BuildDescription<Target>,
     #[clap(flatten)]
     pub output_path: OutputPath<Target>,
 }
@@ -287,7 +280,7 @@ pub struct BuildJob<Target: IsTargetSource> {
 #[derivative(Debug)]
 pub struct WatchJob<Target: IsWatchableSource> {
     #[clap(flatten)]
-    pub build:       BuildJob<Target>,
+    pub build: BuildJob<Target>,
     #[clap(flatten)]
     pub watch_input: Target::WatchInput,
 }

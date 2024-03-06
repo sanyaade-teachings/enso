@@ -11,7 +11,6 @@ use anyhow::Context;
 use futures_util::future::try_join;
 use futures_util::future::try_join3;
 use ide_ci::io::download_all;
-use ide_ci::ok_ready_boxed;
 use ide_ci::program::command::FallibleManipulator;
 use ide_ci::programs::node::NpmCommand;
 use ide_ci::programs::Npm;
@@ -169,15 +168,15 @@ pub enum Command {
 /// Things that are common to `watch` and `build`.
 #[derive(Debug)]
 pub struct ContentEnvironment<Assets, Output> {
-    pub asset_dir:   Assets,
-    pub wasm:        wasm::Artifact,
+    pub asset_dir: Assets,
+    pub wasm: wasm::Artifact,
     pub output_path: Output,
 }
 
 impl<Output: AsRef<Path>> ContentEnvironment<TempDir, Output> {
     pub async fn new(
         ide: &IdeDesktop,
-        wasm: impl Future<Output = Result<wasm::Artifact>>,
+        wasm: impl Future<Output=Result<wasm::Artifact>>,
         build_info: &BuildInfo,
         output_path: Output,
     ) -> Result<Self> {
@@ -192,7 +191,7 @@ impl<Output: AsRef<Path>> ContentEnvironment<TempDir, Output> {
 }
 
 impl<Assets: AsRef<Path>, Output: AsRef<Path>> FallibleManipulator
-    for ContentEnvironment<Assets, Output>
+for ContentEnvironment<Assets, Output>
 {
     fn try_applying<C: IsCommandWrapper + ?Sized>(&self, command: &mut C) -> Result {
         let artifacts_for_gui =
@@ -227,9 +226,9 @@ pub struct ProjectManagerInfo {
     /// Latest bundled engine version, that will be used as this IDE's default.
     pub latest_bundled_engine: Version,
     /// Root of the Project Manager bundle.
-    pub bundle_location:       PathBuf,
+    pub bundle_location: PathBuf,
     /// Relative path from the bundle location.
-    pub pm_executable:         PathBuf,
+    pub pm_executable: PathBuf,
 }
 
 impl ProjectManagerInfo {
@@ -257,8 +256,8 @@ pub struct IdeDesktop {
     pub build_sbt: generated::RepoRootBuildSbt,
     pub repo_root: generated::RepoRoot,
     #[derivative(Debug = "ignore")]
-    pub octocrab:  Octocrab,
-    pub cache:     ide_ci::cache::Cache,
+    pub octocrab: Octocrab,
+    pub cache: ide_ci::cache::Cache,
 }
 
 impl IdeDesktop {
@@ -299,13 +298,13 @@ impl IdeDesktop {
         Ok(IconsArtifacts(output_path.as_ref().into()))
     }
 
-    #[tracing::instrument(name="Building IDE Content.", skip_all, fields(
-        dest = %output_path.as_ref().display(),
-        build_info,
-        err))]
+    #[tracing::instrument(name = "Building IDE Content.", skip_all, fields(
+    dest = % output_path.as_ref().display(),
+    build_info,
+    err))]
     pub async fn build_content<P: AsRef<Path>>(
         &self,
-        wasm: impl Future<Output = Result<wasm::Artifact>>,
+        wasm: impl Future<Output=Result<wasm::Artifact>>,
         build_info: &BuildInfo,
         output_path: P,
     ) -> Result<ContentEnvironment<TempDir, P>> {
@@ -321,12 +320,12 @@ impl IdeDesktop {
     }
 
 
-    #[tracing::instrument(name="Setting up GUI Content watcher.",
-        fields(wasm = tracing::field::Empty),
-        err)]
+    #[tracing::instrument(name = "Setting up GUI Content watcher.",
+    fields(wasm = tracing::field::Empty),
+    err)]
     pub async fn watch_content(
         &self,
-        wasm: impl Future<Output = Result<wasm::Artifact>>,
+        wasm: impl Future<Output=Result<wasm::Artifact>>,
         build_info: &BuildInfo,
     ) -> Result<Watcher> {
         // When watching we expect our artifacts to be served through server, not appear in any
@@ -345,13 +344,13 @@ impl IdeDesktop {
     }
 
     /// Build the full Electron package, using the electron-builder.
-    #[tracing::instrument(name="Preparing distribution of the IDE.", skip_all, fields(
-        dest = %output_path.as_ref().display(),
-        ?gui,
-        ?project_manager,
-        ?target_os,
-        ?target,
-        err))]
+    #[tracing::instrument(name = "Preparing distribution of the IDE.", skip_all, fields(
+    dest = % output_path.as_ref().display(),
+    ? gui,
+    ? project_manager,
+    ? target_os,
+    ? target,
+    err))]
     pub async fn dist(
         &self,
         gui: &impl IsArtifact,
@@ -425,62 +424,12 @@ impl IdeDesktop {
 
         Ok(())
     }
-
-    /// Spawn the watch script for the client.
-    pub async fn watch(
-        &self,
-        wasm_watch_job: BoxFuture<
-            'static,
-            Result<crate::project::PerhapsWatched<crate::project::Wasm>>,
-        >,
-        build_info: BoxFuture<'static, Result<BuildInfo>>,
-        get_project_manager: BoxFuture<'static, Result<crate::project::backend::Artifact>>,
-        ide_options: Vec<String>,
-    ) -> Result {
-        let npm_install_job = crate::web::install(&self.repo_root);
-        // TODO: This could be possibly optimized by awaiting WASM a bit later, and passing its
-        //       future to the ContentEnvironment. However, the code would get a little tricky.
-        //       Should be reconsidered in the future, based on actual timings.
-        let (_npm_installed, watched_wasm, project_manager) =
-            try_join!(npm_install_job, wasm_watch_job, get_project_manager)?;
-
-        let pm_bundle = ProjectManagerInfo::new(&project_manager)?;
-
-        let temp_dir_for_gui = TempDir::new()?;
-        let content_env = ContentEnvironment::new(
-            self,
-            ok_ready_boxed(watched_wasm.as_ref().clone()),
-            &build_info.await?,
-            &temp_dir_for_gui,
-        )
-        .await?;
-
-        let mut script_args = Vec::new();
-        if !ide_options.is_empty() {
-            script_args.push("--");
-            script_args.extend(ide_options.iter().map(String::as_str));
-        }
-
-
-        let temp_dir_for_ide = TempDir::new()?;
-        self.npm()?
-            .try_applying(&content_env)?
-            .set_env(env::ENSO_BUILD_IDE, temp_dir_for_ide.path())?
-            .try_applying(&pm_bundle)?
-            .workspace(Workspaces::Enso)
-            .run("watch")
-            .args(script_args)
-            .run_ok()
-            .await?;
-
-        Ok(())
-    }
 }
 
 #[derive(Debug)]
 pub struct Watcher {
     pub watch_environment: ContentEnvironment<TempDir, TempDir>,
-    pub child_process:     Child,
+    pub child_process: Child,
 }
 
 impl ProcessWrapper for Watcher {
