@@ -248,7 +248,7 @@ pub struct OutputPath<Target: IsTargetSource> {
     #[derivative(Debug = "ignore", PartialEq(bound = ""))]
     #[allow(missing_docs)]
     #[clap(skip)]
-    pub phantom: PhantomData<Target>,
+    pub phantom:     PhantomData<Target>,
 }
 
 impl<Target: IsTargetSource> AsRef<Path> for OutputPath<Target> {
@@ -262,7 +262,7 @@ impl<Target: IsTargetSource> AsRef<Path> for OutputPath<Target> {
 pub struct BuildDescription<Target: IsTargetSource> {
     #[derivative(PartialEq(bound = ""))]
     #[clap(flatten)]
-    pub input: Target::BuildInput,
+    pub input:           Target::BuildInput,
     #[clap(name = Target::UPLOAD_ARTIFACT_NAME, long, enso_env(), default_value_t = ide_ci::actions::workflow::is_in_env())]
     pub upload_artifact: bool,
 }
@@ -271,7 +271,7 @@ pub struct BuildDescription<Target: IsTargetSource> {
 #[derivative(Debug)]
 pub struct BuildJob<Target: IsTargetSource> {
     #[clap(flatten)]
-    pub input: BuildDescription<Target>,
+    pub input:       BuildDescription<Target>,
     #[clap(flatten)]
     pub output_path: OutputPath<Target>,
 }
@@ -280,7 +280,7 @@ pub struct BuildJob<Target: IsTargetSource> {
 #[derivative(Debug)]
 pub struct WatchJob<Target: IsWatchableSource> {
     #[clap(flatten)]
-    pub build: BuildJob<Target>,
+    pub build:       BuildJob<Target>,
     #[clap(flatten)]
     pub watch_input: Target::WatchInput,
 }

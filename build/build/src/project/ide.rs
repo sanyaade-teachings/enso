@@ -12,13 +12,13 @@ use ide_ci::actions::workflow::is_in_env;
 #[derive(Clone, Debug)]
 pub struct Artifact {
     /// Directory with unpacked client distribution.
-    pub unpacked: PathBuf,
+    pub unpacked:            PathBuf,
     /// Entry point within an unpacked client distribution.
     pub unpacked_executable: PathBuf,
     /// File with the compressed client image (like installer or AppImage).
-    pub image: PathBuf,
+    pub image:               PathBuf,
     /// File with the checksum of the image.
-    pub image_checksum: PathBuf,
+    pub image_checksum:      PathBuf,
 }
 
 impl Artifact {
@@ -41,7 +41,7 @@ impl Artifact {
             OS::Windows => "Enso.exe",
             _ => todo!("{target_os}-{target_arch} combination is not supported"),
         }
-            .into();
+        .into();
         // Electron-builder does something like this:
         // https://github.com/electron-userland/electron-builder/blob/master/packages/builder-util/src/arch.ts
         let arch_string = match (target_os, target_arch) {
@@ -100,19 +100,19 @@ impl Artifact {
 #[derivative(Debug)]
 pub struct BuildInput<GuiArtifact> {
     #[derivative(Debug(format_with = "std::fmt::Display::fmt"))]
-    pub version: Version,
+    pub version:         Version,
     #[derivative(Debug = "ignore")]
     pub project_manager: BoxFuture<'static, Result<crate::project::backend::Artifact>>,
     #[derivative(Debug = "ignore")]
-    pub gui: BoxFuture<'static, Result<GuiArtifact>>,
+    pub gui:             BoxFuture<'static, Result<GuiArtifact>>,
     pub electron_target: Option<String>,
     /// The name base used to generate CI run artifact names.
-    pub artifact_name: String,
+    pub artifact_name:   String,
 }
 
 #[derive(Clone, Copy, Debug)]
 pub struct Ide {
-    pub target_os: OS,
+    pub target_os:   OS,
     pub target_arch: Arch,
 }
 
@@ -140,6 +140,6 @@ impl Ide {
                 .await?;
             Ok(Artifact::new(target_os, target_arch, &version, output_path))
         }
-            .boxed()
+        .boxed()
     }
 }

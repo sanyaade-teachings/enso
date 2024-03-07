@@ -39,15 +39,15 @@ pub const WASM_ARTIFACT_NAME: &str = "gui_wasm";
 pub const DEFAULT_TARGET_CRATE: &str = "app/gui";
 
 #[derive(
-clap::ArgEnum,
-Clone,
-Copy,
-Debug,
-Default,
-strum::Display,
-strum::EnumString,
-PartialEq,
-Eq
+    clap::ArgEnum,
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    strum::Display,
+    strum::EnumString,
+    PartialEq,
+    Eq
 )]
 #[strum(serialize_all = "kebab-case")]
 pub enum ProfilingLevel {
@@ -59,15 +59,15 @@ pub enum ProfilingLevel {
 }
 
 #[derive(
-clap::ArgEnum,
-Clone,
-Copy,
-Debug,
-Default,
-strum::Display,
-strum::EnumString,
-PartialEq,
-Eq
+    clap::ArgEnum,
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    strum::Display,
+    strum::EnumString,
+    PartialEq,
+    Eq
 )]
 #[strum(serialize_all = "kebab-case")]
 pub enum LogLevel {
@@ -132,16 +132,16 @@ impl Profile {
 #[derivative(Debug)]
 pub struct BuildInput {
     /// Path to the crate to be compiled to WAM. Relative to the repository root.
-    pub crate_path: PathBuf,
-    pub wasm_opt_options: Vec<String>,
-    pub skip_wasm_opt: bool,
-    pub extra_cargo_options: Vec<String>,
-    pub profile: Profile,
-    pub profiling_level: Option<ProfilingLevel>,
-    pub log_level: LogLevel,
+    pub crate_path:            PathBuf,
+    pub wasm_opt_options:      Vec<String>,
+    pub skip_wasm_opt:         bool,
+    pub extra_cargo_options:   Vec<String>,
+    pub profile:               Profile,
+    pub profiling_level:       Option<ProfilingLevel>,
+    pub log_level:             LogLevel,
     pub uncollapsed_log_level: LogLevel,
-    pub wasm_size_limit: Option<byte_unit::Byte>,
-    pub system_shader_tools: bool,
+    pub wasm_size_limit:       Option<byte_unit::Byte>,
+    pub system_shader_tools:   bool,
 }
 
 impl BuildInput {
@@ -233,7 +233,7 @@ impl Wasm {
     }
 
     pub async fn test(&self, repo_root: PathBuf, wasm: &[test::Browser], native: bool) -> Result {
-        async fn maybe_run<Fut: Future<Output=Result>>(
+        async fn maybe_run<Fut: Future<Output = Result>>(
             name: &str,
             enabled: bool,
             f: impl (FnOnce() -> Fut),
@@ -260,7 +260,7 @@ impl Wasm {
                 .run_ok()
                 .await
         })
-            .await?;
+        .await?;
 
         maybe_run("wasm", !wasm.is_empty(), || test::test_all(repo_root.clone(), wasm)).await?;
         Ok(())

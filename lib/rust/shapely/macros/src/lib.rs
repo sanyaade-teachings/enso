@@ -185,7 +185,7 @@ pub fn tagged_enum(
 ///     ...
 //  }
 /// ```
-///
+/// 
 /// This macro will generate the following code:
 /// ```text
 /// fn modify_column_count(&self, f: impl FnOnce(&mut Option<usize>)) -> &Self {
@@ -198,7 +198,7 @@ pub fn tagged_enum(
 ///     self.modify_column_count(|t| *t = v.into())
 /// }
 /// ```
-///
+/// 
 ///
 /// ## Hierarchical update and set functions generation.
 ///
@@ -212,7 +212,7 @@ pub fn tagged_enum(
 ///     self
 /// }
 /// ```
-///
+/// 
 /// The following output will be generated:
 /// ```text
 /// fn modify_position(&self, f: impl FnOnce(&mut Vector2<f32>)) -> &Self {
@@ -234,7 +234,7 @@ pub fn tagged_enum(
 ///     self.modify_position(|t| f(&mut t.y))
 /// }
 /// ```
-///
+/// 
 /// You can skip generation of field modifiers by providing the `skip_fields` argument to the macro:
 /// ```text
 /// #[enso_shapely::gen(update, set, skip_fields)]
@@ -243,7 +243,7 @@ pub fn tagged_enum(
 ///     self
 /// }
 /// ```
-///
+/// 
 ///
 /// ## Custom conversions
 /// By default, the `set` and `update` methods will use `Into` trait to convert the resulting value
@@ -256,7 +256,7 @@ pub fn tagged_enum(
 ///     self
 /// }
 /// ```
-///
+/// 
 /// Will result in the following code:
 /// ```text
 /// fn modify_gap(&self, f: impl FnOnce(&mut Vector2<Unit>)) -> &Self {
@@ -281,7 +281,7 @@ pub fn tagged_enum(
 ///     self.modify_gap(|t| f(&mut t.y))
 /// }
 /// ```
-///
+/// 
 ///
 ///
 /// # Debugging the macro

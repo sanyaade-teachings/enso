@@ -55,12 +55,12 @@ pub struct Gui;
 #[derivative(Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct BuildInfo {
-    pub commit: String,
+    pub commit:         String,
     #[derivative(Debug(format_with = "std::fmt::Display::fmt"))]
-    pub version: Version,
+    pub version:        Version,
     #[derivative(Debug(format_with = "std::fmt::Display::fmt"))]
     pub engine_version: Version,
-    pub name: String,
+    pub name:           String,
 }
 
 pub fn ide_desktop_from_context(context: &Context) -> IdeDesktop {

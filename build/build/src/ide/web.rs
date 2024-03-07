@@ -168,15 +168,15 @@ pub enum Command {
 /// Things that are common to `watch` and `build`.
 #[derive(Debug)]
 pub struct ContentEnvironment<Assets, Output> {
-    pub asset_dir: Assets,
-    pub wasm: wasm::Artifact,
+    pub asset_dir:   Assets,
+    pub wasm:        wasm::Artifact,
     pub output_path: Output,
 }
 
 impl<Output: AsRef<Path>> ContentEnvironment<TempDir, Output> {
     pub async fn new(
         ide: &IdeDesktop,
-        wasm: impl Future<Output=Result<wasm::Artifact>>,
+        wasm: impl Future<Output = Result<wasm::Artifact>>,
         build_info: &BuildInfo,
         output_path: Output,
     ) -> Result<Self> {
@@ -191,7 +191,7 @@ impl<Output: AsRef<Path>> ContentEnvironment<TempDir, Output> {
 }
 
 impl<Assets: AsRef<Path>, Output: AsRef<Path>> FallibleManipulator
-for ContentEnvironment<Assets, Output>
+    for ContentEnvironment<Assets, Output>
 {
     fn try_applying<C: IsCommandWrapper + ?Sized>(&self, command: &mut C) -> Result {
         let artifacts_for_gui =
@@ -226,9 +226,9 @@ pub struct ProjectManagerInfo {
     /// Latest bundled engine version, that will be used as this IDE's default.
     pub latest_bundled_engine: Version,
     /// Root of the Project Manager bundle.
-    pub bundle_location: PathBuf,
+    pub bundle_location:       PathBuf,
     /// Relative path from the bundle location.
-    pub pm_executable: PathBuf,
+    pub pm_executable:         PathBuf,
 }
 
 impl ProjectManagerInfo {
@@ -256,8 +256,8 @@ pub struct IdeDesktop {
     pub build_sbt: generated::RepoRootBuildSbt,
     pub repo_root: generated::RepoRoot,
     #[derivative(Debug = "ignore")]
-    pub octocrab: Octocrab,
-    pub cache: ide_ci::cache::Cache,
+    pub octocrab:  Octocrab,
+    pub cache:     ide_ci::cache::Cache,
 }
 
 impl IdeDesktop {
@@ -304,7 +304,7 @@ impl IdeDesktop {
     err))]
     pub async fn build_content<P: AsRef<Path>>(
         &self,
-        wasm: impl Future<Output=Result<wasm::Artifact>>,
+        wasm: impl Future<Output = Result<wasm::Artifact>>,
         build_info: &BuildInfo,
         output_path: P,
     ) -> Result<ContentEnvironment<TempDir, P>> {
@@ -325,7 +325,7 @@ impl IdeDesktop {
     err)]
     pub async fn watch_content(
         &self,
-        wasm: impl Future<Output=Result<wasm::Artifact>>,
+        wasm: impl Future<Output = Result<wasm::Artifact>>,
         build_info: &BuildInfo,
     ) -> Result<Watcher> {
         // When watching we expect our artifacts to be served through server, not appear in any
@@ -429,7 +429,7 @@ impl IdeDesktop {
 #[derive(Debug)]
 pub struct Watcher {
     pub watch_environment: ContentEnvironment<TempDir, TempDir>,
-    pub child_process: Child,
+    pub child_process:     Child,
 }
 
 impl ProcessWrapper for Watcher {
