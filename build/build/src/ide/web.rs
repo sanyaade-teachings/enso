@@ -17,7 +17,7 @@ use ide_ci::programs::Npm;
 use std::process::Stdio;
 use tempfile::TempDir;
 use tokio::process::Child;
-use tracing::Span;
+
 
 
 // ==============
@@ -143,7 +143,6 @@ pub fn path_to_executable_in_pm_bundle(
 pub enum Workspaces {
     Icons,
     IdeDesktop,
-    Content,
     /// The Electron client.
     Enso,
 }
@@ -153,7 +152,6 @@ impl AsRef<OsStr> for Workspaces {
         match self {
             Workspaces::Icons => OsStr::new("enso-icons"),
             Workspaces::IdeDesktop => OsStr::new("enso-ide-desktop"),
-            Workspaces::Content => OsStr::new("enso-content"),
             Workspaces::Enso => OsStr::new("enso"),
         }
     }
@@ -296,51 +294,6 @@ impl IdeDesktop {
             .run_ok()
             .await?;
         Ok(IconsArtifacts(output_path.as_ref().into()))
-    }
-
-    #[tracing::instrument(name = "Building IDE Content.", skip_all, fields(
-    dest = % output_path.as_ref().display(),
-    build_info,
-    err))]
-    pub async fn build_content<P: AsRef<Path>>(
-        &self,
-        wasm: impl Future<Output = Result<wasm::Artifact>>,
-        build_info: &BuildInfo,
-        output_path: P,
-    ) -> Result<ContentEnvironment<TempDir, P>> {
-        let env = ContentEnvironment::new(self, wasm, build_info, output_path).await?;
-        self.npm()?
-            .try_applying(&env)?
-            .workspace(Workspaces::Content)
-            .run("build")
-            .run_ok()
-            .await?;
-
-        Ok(env)
-    }
-
-
-    #[tracing::instrument(name = "Setting up GUI Content watcher.",
-    fields(wasm = tracing::field::Empty),
-    err)]
-    pub async fn watch_content(
-        &self,
-        wasm: impl Future<Output = Result<wasm::Artifact>>,
-        build_info: &BuildInfo,
-    ) -> Result<Watcher> {
-        // When watching we expect our artifacts to be served through server, not appear in any
-        // specific location on the disk.
-        let output_path = TempDir::new()?;
-        let watch_environment =
-            ContentEnvironment::new(self, wasm, build_info, output_path).await?;
-        Span::current().record("wasm", watch_environment.wasm.as_ref().as_str());
-        let child_process = self
-            .npm()?
-            .try_applying(&watch_environment)?
-            .workspace(Workspaces::Content)
-            .run("watch")
-            .spawn_intercepting()?;
-        Ok(Watcher { child_process, watch_environment })
     }
 
     /// Build the full Electron package, using the electron-builder.
