@@ -396,6 +396,7 @@ export default /** @satisfies {import('tailwindcss').Config} */ ({
     },
   },
   plugins: [
+    require('tailwindcss-react-aria-components'),
     plugin(({ addUtilities, matchUtilities, addComponents, theme }) => {
       addUtilities(
         {
