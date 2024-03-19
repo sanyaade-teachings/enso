@@ -1,10 +1,10 @@
 use enso_build::prelude::*;
 
 use clap::Arg;
-use clap::ArgEnum;
 use clap::Args;
 use clap::Parser;
 use clap::Subcommand;
+use clap::ValueEnum;
 use derivative::Derivative;
 use enso_build_base::extensions::path::display_fmt;
 use ide_ci::cache;
@@ -49,12 +49,12 @@ pub fn default_cache_path() -> Option<PathBuf> {
 }
 
 /// Extensions to the `clap::Arg`, intended to be used as argument attributes.
-pub trait ArgExt<'h>: Sized + 'h {
+pub trait ArgExt: Sized {
     /// Allow setting argument through an environment variable prefixed with Enso Build name.
     fn enso_env(self) -> Self;
 }
 
-impl<'h> ArgExt<'h> for Arg<'h> {
+impl ArgExt for Arg {
     fn enso_env(self) -> Self {
         self.prefixed_env(ENVIRONMENT_VARIABLE_NAME_PREFIX)
     }
@@ -181,7 +181,7 @@ pub struct Cli {
 #[derivative(PartialEq)]
 pub struct Source<Target: IsTargetSource> {
     /// How the given target should be acquired.
-    #[clap(name = Target::SOURCE_NAME, arg_enum, long, default_value_t= SourceKind::Build,
+    #[clap(id = Target::SOURCE_NAME, value_enum, long, default_value_t= SourceKind::Build,
     enso_env(),
     default_value_if(Target::RUN_ID_NAME, None, Some("ci-run")),
     default_value_if(Target::PATH_NAME, None, Some("local")),
@@ -190,19 +190,19 @@ pub struct Source<Target: IsTargetSource> {
 
     /// If source is `local`, this argument is used to give the path with the component.
     /// If missing, the default would-be output directory for this component shall be used.
-    #[clap(name = Target::PATH_NAME, long, default_value=Target::DEFAULT_OUTPUT_PATH, enso_env())]
+    #[clap(id = Target::PATH_NAME, long, default_value=Target::DEFAULT_OUTPUT_PATH, enso_env())]
     pub path: PathBuf,
 
     /// If source is `run`, this argument is required to provide CI run ID.
     ///
     /// `GITHUB_TOKEN` environment variable with "repo" access is required to download CI run
     /// artifacts.
-    #[clap(name = Target::RUN_ID_NAME, long, required_if_eq(Target::SOURCE_NAME, "ci-run"), enso_env())]
+    #[clap(id = Target::RUN_ID_NAME, long, required_if_eq(Target::SOURCE_NAME, "ci-run"), enso_env())]
     pub run_id: Option<RunId>,
 
     /// Artifact name to be used when downloading a run artifact. If not set, the default name for
     /// given target will be used.
-    #[clap(name = Target::ARTIFACT_NAME_NAME, long, enso_env())]
+    #[clap(id = Target::ARTIFACT_NAME_NAME, long, enso_env())]
     pub artifact_name: Option<String>,
 
     /// If source is `release`, this argument is required to identify a release with asset to
@@ -222,7 +222,7 @@ pub struct Source<Target: IsTargetSource> {
 }
 
 /// Discriminator denoting how some target artifact should be obtained.
-#[derive(ArgEnum, Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(ValueEnum, Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SourceKind {
     /// Target will be built from the target repository's sources.
     Build,
@@ -242,7 +242,7 @@ pub enum SourceKind {
 pub struct OutputPath<Target: IsTargetSource> {
     /// Directory where artifacts should be placed.
     #[derivative(Debug(format_with = "display_fmt"))]
-    #[clap(name = Target::OUTPUT_PATH_NAME, long, parse(try_from_str=normalize_path), default_value = Target::DEFAULT_OUTPUT_PATH, enso_env())]
+    #[clap(name = Target::OUTPUT_PATH_NAME, long, parse(value_parser = normalize_path), default_value = Target::DEFAULT_OUTPUT_PATH, enso_env())]
     pub output_path: PathBuf,
     #[derivative(Debug = "ignore", PartialEq(bound = ""))]
     #[allow(missing_docs)]

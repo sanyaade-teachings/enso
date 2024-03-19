@@ -73,6 +73,7 @@ debug-assertions = true
 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 # We are tryingto maintain minimum set of dependencies. Before adding a new dependency, consult it
 # with the core development team. Thank you!
+clap = { version = "4.5.3", features = ["derive", "env", "wrap_help", "string"] }
 console-subscriber = "0.1.8"
 dirs = { version = "5.0.1" }
 nix = { version = "0.27.1" }
