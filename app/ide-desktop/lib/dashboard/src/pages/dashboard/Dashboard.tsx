@@ -30,6 +30,7 @@ import Settings from '#/layouts/Settings'
 import TopBar from '#/layouts/TopBar'
 
 import TheModal from '#/components/dashboard/TheModal'
+import { Portal } from '#/components/Portal'
 import type * as spinner from '#/components/Spinner'
 
 import * as backendModule from '#/services/Backend'
@@ -530,9 +531,11 @@ export default function Dashboard(props: DashboardProps) {
           )}
         </div>
       </div>
-      <div className="select-none text-xs text-primary">
-        <TheModal />
-      </div>
+      <Portal>
+        <div className="select-none text-xs text-primary">
+          <TheModal />
+        </div>
+      </Portal>
     </>
   )
 }
